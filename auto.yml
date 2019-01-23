@@ -1,0 +1,76 @@
+---
+- hosts: proxy_nodes
+  become: yes
+  vars:
+    server: 35.156.155.195
+    app_private_path: 172.31.24.84
+  tasks:
+    - yum:
+        name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+        state: present
+    - name: nginx install
+      yum:
+        name: nginx
+        state: present
+    - name: adding nginx conf
+      template:
+        src: templates/nginx.conf
+        dest: /etc/nginx/conf.d/nginx.conf
+    - service:
+        name: nginx
+        state: restarted
+
+- hosts: application_nodes
+  become: yes
+  vars:
+    jar_location: jars/carrental-0.0.1-SNAPSHOT.jar
+    app_location: /opt/carrental/carrental.jar
+    app_user: carrental
+    stat_ip: 172.31.21.153
+  tasks:
+    - yum: 
+        name: java-1.8.0-openjdk
+        state: present
+    - file: 
+        path: /opt/carrental
+        state: directory
+    - name: "copy jar"
+      copy:
+        src: "{{jar_location}}"
+        dest: "{{app_location}}"
+    - name: "create user for service"
+      user:
+        name: "{{app_user}}"
+    - name: "create path to application"
+      file:
+        path: /etc/systemd/system
+        state: directory
+    - name: "copy systemd config into server"
+      template:
+        src: templates/carrental.service
+        dest: /etc/systemd/system/carrental.service
+    - name: "start service"
+      systemd:
+        name: "carrental.service"
+        state: restarted
+        enabled: yes
+    - name: "install telegrapf"
+      yum:
+        name: https://dl.influxdata.com/telegraf/releases/telegraf-1.8.3-1.x86_64.rpm
+        state: present
+    - template:
+        src: templates/telegraf.conf
+        dest: /etc/telegraf/telegraf.conf
+    - service:
+        name: telegraf
+        state: restarted
+
+- hosts: stats_nodes
+  become: yes
+  tasks:
+  - yum:
+      name: https://dl.influxdata.com/influxdb/releases/influxdb-1.7.1.x86_64.rpm
+      state: present
+  - service:
+      name: influxdb
+      state: restarted

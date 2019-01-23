@@ -1,0 +1,12 @@
+[Unit]
+Description=carr rental app
+After=network-online.target
+
+[Service]
+Type=simple
+User=carrental
+ExecStart=/usr/bin/java -jar {{app_location}}
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
